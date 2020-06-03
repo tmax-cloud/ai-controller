@@ -3,7 +3,7 @@
  */
 package notebook.controller;
 
-public class Library {
+public class controller {
     public boolean someLibraryMethod() {
         return true;
     }
