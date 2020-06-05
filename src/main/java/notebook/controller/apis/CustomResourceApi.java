@@ -28,6 +28,7 @@ import java.io.IOException;
 
 
 import io.kubernetes.client.openapi.models.V1DeleteOptions;
+import io.kubernetes.client.openapi.models.V1DeploymentList;
 import notebook.controller.utils.OperatorFunc;
 
 import java.lang.reflect.Type;

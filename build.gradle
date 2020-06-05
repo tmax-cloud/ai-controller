@@ -25,7 +25,16 @@ dependencies {
     compile 'com.google.guava:guava:27.0.1-jre'
 	compile 'io.kubernetes:client-java-api:7.0.0'
     compile 'io.kubernetes:client-java:7.0.0'
-
+    compile 'com.fasterxml.jackson.core:jackson-databind:2.3.1'
+	compile 'com.fasterxml.jackson.datatype:jackson-datatype-joda:2.3.1'
+	compile 'com.googlecode.json-simple:json-simple:1.1'
+	compile 'ch.qos.logback:logback-classic:1.2.3'
+    compile 'ch.qos.logback:logback-core:1.2.3'
+    compile 'com.github.java-json-tools:json-patch:1.11'
+    compile 'com.squareup.okhttp:okhttp:2.7.5'
+    compile group: 'org.threeten', name: 'threetenbp', version: '0.7.2'
+    compile group: 'io.swagger.core.v3', name: 'swagger-annotations', version: '2.0.0-rc4'
+	
     // Use JUnit test framework
     testImplementation 'junit:junit:4.12'
 }
