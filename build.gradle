@@ -38,3 +38,38 @@ dependencies {
     // Use JUnit test framework
     testImplementation 'junit:junit:4.12'
 }
+
+task doBuild {
+	dependsOn "makeJar"
+	dependsOn "copyDependencies"
+	dependsOn "copyStartShell"
+	dependsOn "copyK8sOperatorHome"
+}
+
+task makeJar(type: Jar) {
+    archiveName "notebook-controller.jar"
+    destinationDir = file("build/notebook-controller/lib")
+
+    from(sourceSets.main.output.classesDirs) {
+        include("**")
+    }
+    manifest {
+        attributes 'Main-Class': 'notebook.controller.Main'
+        attributes "Class-Path": configurations.compile.collect { it.getName() }.join(' ')
+    }
+}
+
+task copyDependencies(type: Copy) {
+	into "build/notebook-controller/lib"
+	from configurations.compile
+}
+
+task copyStartShell(type: Copy) {
+	into "build"
+	from "start.sh"
+}
+
+task copyK8sOperatorHome(type: Copy) {
+	from '_controller'
+	into 'build/notebook-controller'
+}

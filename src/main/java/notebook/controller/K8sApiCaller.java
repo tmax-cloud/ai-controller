@@ -7,6 +7,7 @@ import java.util.Map;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
 import org.slf4j.Logger;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -17,6 +18,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import io.kubernetes.client.PortForward;
 import io.kubernetes.client.custom.IntOrString;
 import io.kubernetes.client.custom.Quantity;
 import io.kubernetes.client.openapi.ApiClient;
@@ -48,8 +50,18 @@ import io.kubernetes.client.util.Config;
 import notebook.controller.Constants;
 import notebook.controller.Controller;
 import notebook.controller.Main;
+import notebook.controller.models.Destination;
+import notebook.controller.models.Duration;
+import notebook.controller.models.HTTPMatchRequest;
+import notebook.controller.models.HTTPRewrite;
+import notebook.controller.models.HTTPRoute;
+import notebook.controller.models.HTTPRouteDestination;
 import notebook.controller.models.Notebook;
 import notebook.controller.models.NotebookVolumeSpec;
+import notebook.controller.models.PortSelector;
+import notebook.controller.models.StringMatch;
+import notebook.controller.models.VirtualService;
+import notebook.controller.models.VirtualServiceSpec;
 
 public class K8sApiCaller {
 
@@ -259,6 +271,76 @@ public class K8sApiCaller {
 			logger.info(e.getResponseBody());
 			throw e;
 		}
+	}
+	
+	public static void createVirtualService(V1ObjectMeta notebookMeta) throws Exception {
+		VirtualService vSvc = new VirtualService();
+		V1ObjectMeta vSvcMeta = new V1ObjectMeta();
+		VirtualServiceSpec vSvcSpec = new VirtualServiceSpec();
+		List<String> gateways = new ArrayList<>();
+		List<String> hosts = new ArrayList<>();
+		List<HTTPRoute> httpList = new ArrayList<>();
+		HTTPRoute route = new HTTPRoute();
+		List<HTTPMatchRequest> httpMatch = new ArrayList<>();
+		HTTPMatchRequest match = new HTTPMatchRequest();
+		StringMatch uri = new StringMatch();
+		HTTPRewrite rewrite = new HTTPRewrite();
+		List<HTTPRouteDestination> routeList = new ArrayList<>();
+		HTTPRouteDestination routeDest = new HTTPRouteDestination();
+		Destination dest = new Destination();
+		PortSelector port = new PortSelector();
+		Duration timeout = new Duration();
+		
+		vSvcMeta.setName("notebook-" + notebookMeta.getNamespace() + "-" + notebookMeta.getName());
+		vSvcMeta.setNamespace(notebookMeta.getNamespace());
+		vSvcMeta.setOwnerReferences(getOwnerReferences(notebookMeta));
+		vSvc.setMetadata(vSvcMeta);
+		
+		gateways.add(Constants.KUBEFLOW_GATEWAY);
+		vSvcSpec.setGateways(gateways);
+		hosts.add("*");
+		vSvcSpec.setHosts(hosts);
+		
+		uri.setPrefix("/notebook/" + notebookMeta.getNamespace() + "/" + notebookMeta.getName() + "/");
+		match.setUri(uri);
+		httpMatch.add(match);
+		route.setMatch(httpMatch);
+		
+		rewrite.setUri("/notebook/" + notebookMeta.getNamespace() + "/" + notebookMeta.getName() + "/");
+		route.setRewrite(rewrite);
+		
+		dest.setHost(notebookMeta.getName() + "." + notebookMeta.getNamespace() + ".svc.cluster.local");
+		port.setNumber(80);
+		dest.setPort(port);
+		routeDest.setDestination(dest);
+		routeList.add(routeDest);
+		route.setRoute(routeList);
+		
+		route.setTimeout("300s");
+		httpList.add(route);
+		vSvcSpec.setHttp(httpList);
+		vSvc.setSpec(vSvcSpec);
+		
+		vSvc.setKind(Constants.VIRTUAL_SERVICE_RESOURCE_KIND);
+		vSvc.setApiVersion(Constants.VIRTUAL_SERVICE_RESOURCE_GROUP + "/" + Constants.VIRTUAL_SERVICE_RESOURCE_VERSION);
+		
+		try {     	
+        	JSONParser parser = new JSONParser();        	
+        	JSONObject bodyObj = (JSONObject) parser.parse(new Gson().toJson(vSvc));
+        	
+        	customObjectApi.createNamespacedCustomObject(
+        			Constants.VIRTUAL_SERVICE_RESOURCE_GROUP,
+					Constants.VIRTUAL_SERVICE_RESOURCE_VERSION,
+					notebookMeta.getNamespace(),
+					Constants.VIRTUAL_SERVICE_RESOURCE_PLURAL,
+					bodyObj, null);
+        } catch (ApiException e) {
+        	logger.info(e.getResponseBody());
+        	throw e;
+        } catch (Exception e) {
+        	logger.info(e.getMessage());
+        	throw e;
+        }
 	}
 	
 	private static List<V1OwnerReference> getOwnerReferences(V1ObjectMeta notebookMeta) {

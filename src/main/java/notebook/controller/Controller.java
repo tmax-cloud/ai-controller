@@ -79,14 +79,14 @@ public class Controller extends Thread {
 								
 								// Creating Notebook volume (workspace & data)
 								if(notebook.getSpec().getVolumeClaim() != null ) {
-									replaceStatus(notebookName, Constants.STATUS_WATING, "Waiting for volume binding");
+									replaceStatus(notebookName, notebookNamespace, Constants.STATUS_WATING, "Waiting for volume binding");
 									List<NotebookVolumeSpec> volumeList = notebook.getSpec().getVolumeClaim();
 									for(NotebookVolumeSpec volume : volumeList) {
 										try {
 											K8sApiCaller.createPersistentVolumeClaim(volume, notebook.getMetadata());
 										} catch (ApiException e) {
 											logger.info(e.getResponseBody());
-											replaceStatus(notebookName, Constants.STATUS_FAILED, "Faild to request volume creation");
+											replaceStatus(notebookName, notebookNamespace, Constants.STATUS_FAILED, "Failed to request volume creation");
 											throw e;
 										}
 									}
@@ -94,13 +94,13 @@ public class Controller extends Thread {
 									int checkCnt = 0;
 									while(!checkVolumeBinding(volumeList, notebookNamespace)) {
 										if(checkCnt == 10) {
-											replaceStatus(notebookName, Constants.STATUS_FAILED, "Volume binding is pending");
+											replaceStatus(notebookName, notebookNamespace, Constants.STATUS_FAILED, "Volume binding is pending");
 											throw new Exception("Volume binding is pending");
 										}
 										Thread.sleep(500);
 										checkCnt += 1;
 									}
-									replaceStatus(notebookName, Constants.STATUS_WATING, "Initializing pod");
+									replaceStatus(notebookName, notebookNamespace, Constants.STATUS_WATING, "Initializing pod");
 								}
 								
 								// Creating service for Notebook server
@@ -108,7 +108,7 @@ public class Controller extends Thread {
 									K8sApiCaller.createService(notebook.getMetadata());
 								} catch (ApiException e) {
 									logger.info(e.getResponseBody());
-									replaceStatus(notebookName, Constants.STATUS_FAILED, "Faild to request service creation");
+									replaceStatus(notebookName, notebookNamespace, Constants.STATUS_FAILED, "Failed to request service creation");
 									throw e;
 								}
 								
@@ -117,10 +117,18 @@ public class Controller extends Thread {
 									K8sApiCaller.createStatefulSet(notebook.getMetadata(), notebook.getSpec().getTemplate().getSpec());
 								} catch (ApiException e) {
 									logger.info(e.getResponseBody());
-									replaceStatus(notebookName, Constants.STATUS_FAILED, "Faild to request statefulset creation");
+									replaceStatus(notebookName, notebookNamespace, Constants.STATUS_FAILED, "Failed to request statefulset creation");
 									throw e;
 								}
 								
+								//Creating virtual service for Notebook server
+								try {
+									K8sApiCaller.createVirtualService(notebook.getMetadata());
+								} catch (ApiException e) {
+									logger.info(e.getResponseBody());
+									replaceStatus(notebookName, notebookNamespace, Constants.STATUS_FAILED, "Failed to request virtual service creation");
+									throw e;
+								}
 								break;
 							case Constants.EVENT_TYPE_MODIFIED:
 								break;
@@ -155,7 +163,7 @@ public class Controller extends Thread {
 	}
 	
 	@SuppressWarnings("unchecked")
-    private void replaceStatus( String name, String status, String reason ) throws ApiException {
+    private void replaceStatus( String name, String namespace, String status, String reason ) throws ApiException {
         JsonArray patchStatusArray = new JsonArray();
         JsonObject patchStatus = new JsonObject();
         JsonObject statusObject = new JsonObject();
@@ -175,9 +183,10 @@ public class Controller extends Thread {
           }
         ]*/
         try {
-            api.patchClusterCustomObjectStatus(
+            api.patchNamespacedCustomObjectStatus(
                     Constants.NOTEBOOK_RESOURCE_GROUP, 
-                    Constants.NOTEBOOK_RESOURCE_VERSION, 
+                    Constants.NOTEBOOK_RESOURCE_VERSION,
+                    namespace,
                     Constants.NOTEBOOK_RESOURCE_PLURAL, 
                     name, 
                     patchStatusArray );
