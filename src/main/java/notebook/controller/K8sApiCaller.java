@@ -45,6 +45,7 @@ import io.kubernetes.client.openapi.models.V1ServicePort;
 import io.kubernetes.client.openapi.models.V1ServiceSpec;
 import io.kubernetes.client.openapi.models.V1StatefulSet;
 import io.kubernetes.client.openapi.models.V1StatefulSetSpec;
+import io.kubernetes.client.openapi.models.V1StatefulSetStatus;
 import io.kubernetes.client.openapi.models.V1StatefulSetUpdateStrategy;
 import io.kubernetes.client.util.Config;
 import notebook.controller.Constants;
@@ -139,6 +140,7 @@ public class K8sApiCaller {
 	public static void createPersistentVolumeClaim(NotebookVolumeSpec volumeSpec, V1ObjectMeta notebookMeta) throws Exception {
 		V1PersistentVolumeClaim pvc = new V1PersistentVolumeClaim();
 		V1ObjectMeta pvcMeta = new V1ObjectMeta();
+		Map<String, String> pvcLabels = new HashMap<>();
 		V1PersistentVolumeClaimSpec pvcSpec = new V1PersistentVolumeClaimSpec();
 		V1ResourceRequirements pvcResource = new V1ResourceRequirements();
 		Map<String, Quantity> limit = new HashMap<>();
@@ -146,6 +148,8 @@ public class K8sApiCaller {
 		
 		pvcMeta.setName(volumeSpec.getName());
 		pvcMeta.setNamespace(notebookMeta.getNamespace());
+		pvcLabels.put("notebook", notebookMeta.getName());
+		pvcMeta.setLabels(pvcLabels);
 		
 		limit.put("storage", new Quantity(volumeSpec.getSize()));
 		pvcResource.setRequests(limit);
@@ -162,6 +166,22 @@ public class K8sApiCaller {
 			logger.info(e.getResponseBody());
 			throw e;
 		}
+	}
+	
+	public static boolean persistentVolumeClaimAlreadyExist(String name, String namespace) throws ApiException{
+		boolean exist = false;
+		try {
+			V1PersistentVolumeClaim pvc = api.readNamespacedPersistentVolumeClaim(name, namespace, null, null, null);
+			if(pvc != null) {
+				exist = true;
+				return exist;
+			}
+			return exist;
+		} catch (ApiException e) {
+			logger.info(e.getResponseBody());
+			throw e;
+		}
+
 	}
 	
 	public static String getPersistentVolumeClaimStatus(String name, String namespace) throws ApiException {
@@ -267,6 +287,21 @@ public class K8sApiCaller {
 		
 		try {
 			appApi.createNamespacedStatefulSet(notebookMeta.getNamespace(), sts, null, null, null);
+		} catch (ApiException e) {
+			logger.info(e.getResponseBody());
+			throw e;
+		}
+	}
+	
+	public static boolean statefulSetReady(String name, String namespace) throws ApiException {
+		try {
+			V1StatefulSet sts = appApi.readNamespacedStatefulSet(name, namespace, null, null, null);
+			V1StatefulSetStatus status = sts.getStatus();
+			if(status.getReplicas() - status.getReadyReplicas() == 0) {
+				return true;
+			} else {
+				return false;
+			}
 		} catch (ApiException e) {
 			logger.info(e.getResponseBody());
 			throw e;

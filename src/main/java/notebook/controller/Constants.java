@@ -22,6 +22,9 @@ public class Constants {
 	public static final String KUBEFLOW_GATEWAY = "kubeflow/kubeflow-gateway";
 	
 	public static final String STATUS_FAILED = "Failed";
-	public static final String STATUS_WATING = "Waiting";
+	public static final String STATUS_RUNNING = "Running";
+	public static final String STATUS_WATING_VOLUME_CREATION = "WatingVolumeCreation";
+	public static final String STATUS_INITIALIZING_POD = "InitializingPod";
+	public static final String STATUS_VOLUME_CREATED = "VolumeCreated";
 	
 }
