@@ -22,7 +22,6 @@ import io.kubernetes.client.openapi.models.V1StatefulSet;
 import io.kubernetes.client.openapi.models.V1StatefulSetStatus;
 import io.kubernetes.client.util.Watch;
 import notebook.controller.Constants;
-import notebook.controller.models.Notebook;
 
 public class Reconciler extends Thread {
 	private ExecutorService executorService;
@@ -39,7 +38,7 @@ public class Reconciler extends Thread {
 	Reconciler(ApiClient client, CustomObjectsApi customApi, AppsV1Api appApi, int resourceVersion) throws Exception {
 		notebookReconciler = Watch.createWatch(client,
 				appApi.listStatefulSetForAllNamespacesCall(null, null, null, "app=notebook", null, null, Integer.toString(resourceVersion), null, Boolean.TRUE, null),
-				new TypeToken<Watch.Response<Notebook>>() {
+				new TypeToken<Watch.Response<V1StatefulSet>>() {
 				}.getType());
 
 		latestResourceVersion = resourceVersion;
@@ -109,7 +108,7 @@ public class Reconciler extends Thread {
 						executorService.execute(runnable);
 						break;
 					case Constants.EVENT_TYPE_DELETED:
-						// Do nothing
+						// Recreate STS or not
 						break;
 					}
 				}
@@ -135,7 +134,7 @@ public class Reconciler extends Thread {
 		patchStatus.add("value", statusObject);
 		patchStatusArray.add(patchStatus);
 
-		logger.info("Patch Status Object : " + patchStatusArray);
+		logger.info("[Reconciler] Patch Status Object : " + patchStatusArray);
 		/*
 		 * [ "op" : "replace", "path" : "/status", "value" : { "status" : "Awaiting" } ]
 		 */

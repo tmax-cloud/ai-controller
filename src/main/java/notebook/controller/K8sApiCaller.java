@@ -44,6 +44,7 @@ import io.kubernetes.client.openapi.models.V1Service;
 import io.kubernetes.client.openapi.models.V1ServicePort;
 import io.kubernetes.client.openapi.models.V1ServiceSpec;
 import io.kubernetes.client.openapi.models.V1StatefulSet;
+import io.kubernetes.client.openapi.models.V1StatefulSetList;
 import io.kubernetes.client.openapi.models.V1StatefulSetSpec;
 import io.kubernetes.client.openapi.models.V1StatefulSetStatus;
 import io.kubernetes.client.openapi.models.V1StatefulSetUpdateStrategy;
@@ -92,6 +93,8 @@ public class K8sApiCaller {
 		logger.info("Get latest resource version");
 
 		int notebookLatestResourceVersion = 0;
+		int stsLatestResourceVersion = 0;
+		
 		try {
 			Object response = customObjectApi.listClusterCustomObject(
 					Constants.NOTEBOOK_RESOURCE_GROUP, 
@@ -107,6 +110,12 @@ public class K8sApiCaller {
 				int notebookResourceVersion = Integer.parseInt(notebook.getMetadata().getResourceVersion());
 				notebookLatestResourceVersion = (notebookLatestResourceVersion >= notebookResourceVersion) ? notebookLatestResourceVersion : notebookResourceVersion;
 			}
+			
+			V1StatefulSetList stsList = appApi.listStatefulSetForAllNamespaces(null, null, null, "app=notebook", null, null, null, null, Boolean.FALSE);
+			for(V1StatefulSet sts : stsList.getItems()) {
+				int stsResourceVersion = Integer.parseInt(sts.getMetadata().getResourceVersion());
+				stsLatestResourceVersion = (stsLatestResourceVersion >= stsResourceVersion) ? stsLatestResourceVersion : stsResourceVersion;
+			}
 		} catch (ApiException e) {
         	logger.info("Response body: " + e.getResponseBody());
         	e.printStackTrace();
@@ -116,21 +125,33 @@ public class K8sApiCaller {
 			e.printStackTrace();
 			throw e;
 		}
-		
 		logger.info("Notebook Latest resource version: " + notebookLatestResourceVersion);
+		logger.info("Statefulset Latest resource version: " + stsLatestResourceVersion);
 
 		// Start Controller
 		logger.info("Start Notebook Controller");
 		Controller controller = new Controller(k8sClient, customObjectApi, notebookLatestResourceVersion);
 		controller.start();
+		
+		logger.info("Start Reconciler");
+		Reconciler reconciler = new Reconciler(k8sClient, customObjectApi, appApi, stsLatestResourceVersion);
+		reconciler.start();
 
 		while(true) {			
 			if(!controller.isAlive()) {
 				notebookLatestResourceVersion = Controller.getLatestResourceVersion();
-				logger.info(("Notebook Controller is not Alive. Restart Operator! (Latest Resource Version: " + notebookLatestResourceVersion + ")"));
+				logger.info(("Notebook Controller is not Alive. Restart Controller! (Latest Resource Version: " + notebookLatestResourceVersion + ")"));
 				controller.interrupt();
 				controller = new Controller(k8sClient, customObjectApi, notebookLatestResourceVersion);
 				controller.start();
+			}
+			
+			if(!reconciler.isAlive()) {
+				stsLatestResourceVersion = Reconciler.getLatestResourceVersion();
+				logger.info(("Reconciler is not Alive. Restart Reconciler! (Latest Resource Version: " + stsLatestResourceVersion + ")"));
+				reconciler.interrupt();
+				reconciler = new Reconciler(k8sClient, customObjectApi, appApi, stsLatestResourceVersion);
+				reconciler.start();
 			}
 
 			Thread.sleep(10000); // Period: 10 sec
@@ -169,19 +190,21 @@ public class K8sApiCaller {
 	}
 	
 	public static boolean persistentVolumeClaimAlreadyExist(String name, String namespace) throws ApiException{
-		boolean exist = false;
+		V1PersistentVolumeClaim pvc;
 		try {
-			V1PersistentVolumeClaim pvc = api.readNamespacedPersistentVolumeClaim(name, namespace, null, null, null);
-			if(pvc != null) {
-				exist = true;
-				return exist;
-			}
-			return exist;
+			pvc = api.readNamespacedPersistentVolumeClaim(name, namespace, null, null, null);
 		} catch (ApiException e) {
-			logger.info(e.getResponseBody());
-			throw e;
+			logger.info("PVC-" + name + " does not exist");
+			return false;
 		}
-
+		
+		if(pvc == null) {
+			logger.info("PVC-" + name + " does not exist");
+			return false;
+		} else {
+			logger.info(pvc.toString());
+			return true;
+		}
 	}
 	
 	public static String getPersistentVolumeClaimStatus(String name, String namespace) throws ApiException {
@@ -249,6 +272,7 @@ public class K8sApiCaller {
 		stsMeta.setNamespace(notebookMeta.getNamespace());
 		stsMeta.setOwnerReferences(getOwnerReferences(notebookMeta));
 		stsLabel.put("app", "notebook");
+		stsMeta.setLabels(stsLabel);
 		
 		matchLabels.put(Constants.STS_LABEL_KEY, notebookMeta.getName());
 		selector.setMatchLabels(matchLabels);

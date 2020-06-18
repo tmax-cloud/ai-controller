@@ -69,8 +69,9 @@ public class Controller extends Thread {
 				if (notebook != null) {
 					latestResourceVersion = Integer.parseInt(notebook.getMetadata().getResourceVersion());
 					String eventType = response.type.toString();
-					logger.info("[Notebook Controller] Event Type : " + eventType);
-					logger.info("[Notebook Controller] == Notebook == \n" + notebook.toString());
+					logger.info("Event Type : " + eventType);
+					logger.info("Notebook Name : " + notebookName);
+					logger.info("Notebook Namespace : " + notebookNamespace);
 
 					switch (eventType) {
 					case Constants.EVENT_TYPE_ADDED:
@@ -80,13 +81,13 @@ public class Controller extends Thread {
 								try {
 									// Creating Notebook volume (workspace & data)
 									if (notebook.getSpec().getVolumeClaim() != null) {
-										logger.info("[Notebook Controller] Creating volume for Notebook");
+										logger.info("Creating volume for Notebook");
 										List<NotebookVolumeSpec> volumeList = notebook.getSpec().getVolumeClaim();
 										for (NotebookVolumeSpec volume : volumeList) {
 											if (!volummeAlreadyExist(volume.getName(), notebookNamespace)) {
 												try {
 													K8sApiCaller.createPersistentVolumeClaim(volume, notebook.getMetadata());
-													logger.info("[Notebook Controller] Waiting for Notebook volume");
+													logger.info("Waiting for Notebook volume");
 													updateStatus(notebookName, notebookNamespace, Constants.STATUS_WATING_VOLUME_CREATION, "Waiting for volume (" + volume.getName() + ") creation");
 												} catch (ApiException e) {
 													logger.info(e.getResponseBody());
@@ -98,7 +99,7 @@ public class Controller extends Thread {
 
 										try {
 											checkVolumeBinding(volumeList, notebookNamespace);
-											logger.info("[Notebook Controller] Notebook volumes are successfully created");
+											logger.info("Notebook volumes are successfully created");
 											updateStatus(notebookName, notebookNamespace, Constants.STATUS_VOLUME_CREATED, "All volumes are successfully created");
 										} catch (Exception e) {
 											logger.info(e.getMessage());
@@ -109,7 +110,7 @@ public class Controller extends Thread {
 
 									// Creating statefulset for Notebook server
 									try {
-										logger.info("[Notebook Controller] Creating Notebook statefulset");
+										logger.info("Creating Notebook statefulset");
 										K8sApiCaller.createStatefulSet(notebook.getMetadata(), notebook.getSpec().getTemplate().getSpec());
 										updateStatus(notebookName, notebookNamespace, Constants.STATUS_INITIALIZING_POD, "Pod is initializing");
 									} catch (ApiException e) {
@@ -120,7 +121,7 @@ public class Controller extends Thread {
 									
 									// Creating service for Notebook server
 									try {
-										logger.info("[Notebook Controller] Creating Notebook service");
+										logger.info("Creating Notebook service");
 										K8sApiCaller.createService(notebook.getMetadata());
 									} catch (ApiException e) {
 										logger.info(e.getResponseBody());
@@ -130,7 +131,7 @@ public class Controller extends Thread {
 
 									// Creating virtual service for Notebook server
 									try {
-										logger.info("[Notebook Controller] Creating Notebook virtual service");
+										logger.info("Creating Notebook virtual service");
 										K8sApiCaller.createVirtualService(notebook.getMetadata());
 									} catch (ApiException e) {
 										logger.info(e.getResponseBody());
