@@ -1,16 +1,11 @@
 package notebook.controller;
 
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
 import org.slf4j.Logger;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -112,16 +107,6 @@ public class Controller extends Thread {
 										}
 									}
 
-									// Creating service for Notebook server
-									try {
-										logger.info("[Notebook Controller] Creating Notebook service");
-										K8sApiCaller.createService(notebook.getMetadata());
-									} catch (ApiException e) {
-										logger.info(e.getResponseBody());
-										updateStatus(notebookName, notebookNamespace, Constants.STATUS_FAILED, "Failed to request service creation");
-										throw e;
-									}
-
 									// Creating statefulset for Notebook server
 									try {
 										logger.info("[Notebook Controller] Creating Notebook statefulset");
@@ -130,6 +115,16 @@ public class Controller extends Thread {
 									} catch (ApiException e) {
 										logger.info(e.getResponseBody());
 										updateStatus(notebookName, notebookNamespace, Constants.STATUS_FAILED, "Failed to request statefulset creation");
+										throw e;
+									}
+									
+									// Creating service for Notebook server
+									try {
+										logger.info("[Notebook Controller] Creating Notebook service");
+										K8sApiCaller.createService(notebook.getMetadata());
+									} catch (ApiException e) {
+										logger.info(e.getResponseBody());
+										updateStatus(notebookName, notebookNamespace, Constants.STATUS_FAILED, "Failed to request service creation");
 										throw e;
 									}
 
@@ -150,7 +145,7 @@ public class Controller extends Thread {
 						executorService.execute(runnable);
 						break;
 					case Constants.EVENT_TYPE_MODIFIED:
-						// DO nothing
+						// Do nothing
 						break;
 					case Constants.EVENT_TYPE_DELETED:
 						// Do nothing
@@ -204,26 +199,6 @@ public class Controller extends Thread {
 				}
 				volumeBound = true;
 			}
-		}
-	}
-
-	private void checkStatefulsetReady(String name, String namespace) throws Exception {
-		boolean ready = false;
-		int checkCnt = 0;
-
-		while (!ready) {
-			if (checkCnt == 20) {
-				throw new Exception("Creating Statefulset for notebook is pending");
-			}
-
-			try {
-				ready = K8sApiCaller.statefulSetReady(name, namespace);
-			} catch (ApiException e) {
-				e.getResponseBody();
-				throw e;
-			}
-
-			Thread.sleep(5000);
 		}
 	}
 

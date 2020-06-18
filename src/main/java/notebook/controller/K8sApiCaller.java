@@ -231,6 +231,7 @@ public class K8sApiCaller {
 	public static void createStatefulSet(V1ObjectMeta notebookMeta, V1PodSpec spec) throws Exception {
 		V1StatefulSet sts = new V1StatefulSet();
 		V1ObjectMeta stsMeta = new V1ObjectMeta();
+		Map<String, String> stsLabel = new HashMap<>();
 		V1StatefulSetSpec stsSpec = new V1StatefulSetSpec();
 		V1LabelSelector selector = new V1LabelSelector();
 		Map<String, String> matchLabels = new HashMap<>();
@@ -247,6 +248,7 @@ public class K8sApiCaller {
 		stsMeta.setName(notebookMeta.getName());
 		stsMeta.setNamespace(notebookMeta.getNamespace());
 		stsMeta.setOwnerReferences(getOwnerReferences(notebookMeta));
+		stsLabel.put("app", "notebook");
 		
 		matchLabels.put(Constants.STS_LABEL_KEY, notebookMeta.getName());
 		selector.setMatchLabels(matchLabels);
