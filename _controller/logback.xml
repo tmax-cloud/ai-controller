@@ -26,6 +26,26 @@
         </rollingPolicy>
     </appender>
     
+    <appender name="NOTEBOOKRECONCILER" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOGS_ABSOLUTE_PATH}/notebook_reconciler.log</file>
+        <encoder>
+            <pattern>[%d{yyyy.MM.dd HH:mm:ss}] [%thread] [%level] [%logger{35}] %msg%n</pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOGS_ABSOLUTE_PATH}/notebook_reconciler_%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <!-- or whenever the file size reaches 100MB -->
+                <maxFileSize>20MB</maxFileSize>
+                <!-- kb, mb, gb -->
+            </timeBasedFileNamingAndTriggeringPolicy>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+    </appender>
+    
+    <logger name="NotebookReconciler" level="INFO">
+        <appender-ref ref="NOTEBOOKRECONCILER"/>
+    </logger>
+    
     <logger name="NotebookController" level="INFO">
         <appender-ref ref="NOTEBOOKCONTROLLER"/>
     </logger>

@@ -287,7 +287,7 @@ public class K8sApiCaller {
 		
 		V1Container container = spec.getContainers().get(0);
 		env.setName("NB_PREFIX");
-		env.setValue("/notebook/" + notebookMeta.getNamespace() + "/" + notebookMeta.getName());
+		env.setValue("/api/kubeflow/notebook/" + notebookMeta.getNamespace() + "/" + notebookMeta.getName());
 		container.addEnvItem(env);
 		container.setImagePullPolicy("IfNotPresent");
 		port.setContainerPort(8888);
@@ -362,12 +362,12 @@ public class K8sApiCaller {
 		hosts.add("*");
 		vSvcSpec.setHosts(hosts);
 		
-		uri.setPrefix("/notebook/" + notebookMeta.getNamespace() + "/" + notebookMeta.getName() + "/");
+		uri.setPrefix("/api/kubeflow/notebook/" + notebookMeta.getNamespace() + "/" + notebookMeta.getName() + "/");
 		match.setUri(uri);
 		httpMatch.add(match);
 		route.setMatch(httpMatch);
 		
-		rewrite.setUri("/notebook/" + notebookMeta.getNamespace() + "/" + notebookMeta.getName() + "/");
+		rewrite.setUri("/api/kubeflow/notebook/" + notebookMeta.getNamespace() + "/" + notebookMeta.getName() + "/");
 		route.setRewrite(rewrite);
 		
 		dest.setHost(notebookMeta.getName() + "." + notebookMeta.getNamespace() + ".svc.cluster.local");
