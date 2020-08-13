@@ -16,7 +16,7 @@ public class Constants {
 	public static final String EVENT_TYPE_DELETED = "DELETED";
 	
 	public static final String STS_LABEL_KEY = "statefulset";
-	public static final String PVC_ACCESS_MODE = "ReadWriteOnce";
+	public static final String PVC_ACCESS_MODE = "ReadWriteMany";
 	public static final String SVC_TYPE_CLUSTER_IP = "ClusterIP";
 	public static final String SVC_PORT_PREFIX_HTTP = "http-";
 	public static final String KUBEFLOW_GATEWAY = "kubeflow/kubeflow-gateway";
